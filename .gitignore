@@ -1,0 +1,11 @@
+donnees/
+cache/
+sorties/
+modeles/*
+!modeles/tp2_*.pt
+!modeles/tp4_*.pt
+__pycache__/
+.venv/
+**/__marimo__/*
+!**/__marimo__/*.html
+runs/

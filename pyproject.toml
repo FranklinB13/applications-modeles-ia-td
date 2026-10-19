@@ -1,0 +1,44 @@
+[project]
+name = "td-applications-modeles-ia"
+version = "1.0"
+description = "TD du module Applications et Modèles en IA (ING3 option IA)"
+requires-python = ">=3.10"
+dependencies = [
+    "torch>=2.3",
+    "torchvision>=0.18",
+    "timm>=1.0",
+    "marimo>=0.25",
+    "numpy>=1.26",
+    "scikit-learn>=1.4",
+    "scikit-image>=0.22",
+    "matplotlib>=3.8",
+    "pillow>=10.0",
+    "opencv-python-headless>=4.8",
+    # 8.4.171 : la version qui a enregistré le modèle fourni modeles/tp2_yolov8n_ppe_20ep.pt
+    "ultralytics>=8.4.171",
+    "pandas>=2.0",
+    "open_clip_torch>=2.24",
+    "gymnasium>=0.29",
+    "stable-baselines3>=2.3",
+    "networkx>=3.0",
+]
+
+# Les versions exactes, les mêmes pour tout le monde, sont dans uv.lock (créé par `uv lock`, à versionner).
+
+[tool.uv]
+# Ce dépôt n'est pas une bibliothèque à installer : uv ne gère que son environnement.
+package = false
+
+# PyTorch en version CPU, plus légère, qui suffit pour tous les TD.
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+# Sur macOS, PyTorch se prend sur PyPI, où il est publié pour ce système.
+[tool.uv.sources]
+torch = [{ index = "pytorch-cpu", marker = "sys_platform != 'darwin'" }]
+torchvision = [{ index = "pytorch-cpu", marker = "sys_platform != 'darwin'" }]
+
+[tool.marimo.runtime]
+auto_instantiate = true
