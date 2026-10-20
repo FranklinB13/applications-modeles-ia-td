@@ -1,7 +1,6 @@
 # Applications et Modèles en IA — TD
 
-Module ING3 option IA, CY Tech. Six TD, un projet fil rouge (Usine 4.0).
-
+Module ING3 option IA, CY Tech
 Chaque TD est un notebook **marimo** : un simple fichier Python que l'on ouvre dans le navigateur, avec des
 cellules à exécuter, du code à compléter et des tests automatiques. Les fichiers se versionnent proprement
 avec Git : c'est votre copie de ce dépôt, complétée, que vous rendez à la fin du module.
