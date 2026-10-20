@@ -6,8 +6,15 @@ Chaque TD est un notebook **marimo** : un simple fichier Python que l'on ouvre d
 cellules à exécuter, du code à compléter et des tests automatiques. Les fichiers se versionnent proprement
 avec Git : c'est votre copie de ce dépôt, complétée, que vous rendez à la fin du module.
 
-Les TD sont mis en ligne ici au fur et à mesure, un par séance. Vous clonez ce dépôt une seule fois, puis vous
-récupérez chaque nouveau TD avec une commande (voir « Récupérer le TD suivant »).
+Les TD sont mis en ligne ici au fur et à mesure, un par séance. **Vous clonez ce dépôt une seule fois**, au
+TD 1. Ensuite, au début de chaque séance, une seule commande récupère le nouveau TD dans votre dossier, à côté
+de votre travail, sans rien écraser :
+
+```bash
+uv run python recuperer_td.py
+```
+
+Le détail est dans « Récupérer le TD suivant ».
 
 ## Installation (une seule fois, environ 15 minutes)
 
@@ -33,19 +40,30 @@ Python vous-même.
    uv run python verifier_installation.py --donnees
    ```
 
-3. Créez votre dépôt de rendu. Sur GitHub, créez un dépôt **privé** et vide (sans README ni `.gitignore`),
-   ajoutez-y l'enseignant comme collaborateur (Settings, Collaborators : `FranklinB13`), puis, dans le dossier
-   du dépôt :
+3. Créez votre dépôt de rendu, celui que vous rendrez à la fin du module. C'est à faire une seule fois, au
+   TD 1, et c'est l'étape la plus délicate : suivez-la dans l'ordre.
 
-   ```bash
-   git remote rename origin prof
-   git remote add origin https://github.com/<votre-compte>/<votre-depot>
-   git push -u origin main
-   ```
+   a. Dites à Git qui vous êtes (une fois par ordinateur) :
+
+      ```bash
+      git config --global user.name "Prénom Nom"
+      git config --global user.email "votre.adresse@cyu.fr"
+      ```
+
+   b. Sur GitHub, créez un dépôt **privé** et **vide** : ne cochez ni README, ni `.gitignore`, ni licence.
+      Dans ce dépôt, ajoutez l'enseignant comme collaborateur (Settings, Collaborators : `FranklinB13`).
+
+   c. Dans le dossier du dépôt cloné, reliez les deux dépôts (remplacez `<votre-compte>/<votre-depot>`) :
+
+      ```bash
+      git remote rename origin prof
+      git remote add origin https://github.com/<votre-compte>/<votre-depot>
+      git push -u origin main
+      ```
 
    Ne faites pas de *fork* : le fork d'un dépôt public est public, et tout le monde verrait vos réponses.
-   Après cette étape, `git push` envoie votre travail sur votre dépôt, et `prof` désigne ce dépôt-ci, d'où
-   arrivent les nouveaux TD.
+   Après cette étape, votre dossier est relié à deux dépôts : `origin`, le vôtre, où part votre travail, et
+   `prof`, celui-ci, d'où arrivent les nouveaux TD. Vérifiez-le avec `git remote -v`.
 
 `uv sync` crée l'environnement dans `.venv/`, avec exactement les versions inscrites dans `uv.lock` : les mêmes
 pour tout le monde, celles avec lesquelles les TD ont été vérifiés. PyTorch y est installé en version CPU, plus
@@ -72,8 +90,30 @@ Trois choses à savoir sur marimo :
 
 ## Récupérer le TD suivant
 
-Chaque nouveau TD arrive sous la forme de nouveaux fichiers (le notebook, ses tests dans `outils/` et, pour
-certains TD, un modèle fourni dans `modeles/`). Enregistrez d'abord votre travail, puis récupérez-les :
+Au début de chaque séance, dans le dossier du dépôt :
+
+```bash
+uv run python recuperer_td.py
+```
+
+Le script fait trois choses, et affiche ce qu'il a fait :
+
+1. il enregistre votre travail en cours (un commit), pour que rien ne se perde ;
+2. il récupère les nouveaux fichiers de l'enseignant : le notebook du TD, ses tests dans `outils/`, et pour
+   certains TD un modèle fourni dans `modeles/`. Il vous donne la commande pour ouvrir le nouveau TD ;
+3. il envoie le tout sur votre dépôt de rendu (`git push`).
+
+Votre travail n'est jamais écrasé. Deux cas particuliers, que le script gère et explique :
+
+- si vous avez modifié un fichier fourni (dans `outils/` par exemple) et que l'enseignant l'a mis à jour, le
+  script reprend la version de l'enseignant ;
+- si l'enseignant a corrigé un notebook que vous avez déjà commencé, le script annule la récupération et ne
+  touche à rien : prévenez l'enseignant.
+
+Si une bibliothèque a changé de version, `uv run` met l'environnement à jour tout seul au lancement suivant :
+il n'y a rien d'autre à faire.
+
+Sans le script, les mêmes étapes à la main :
 
 ```bash
 git add -A
@@ -82,9 +122,8 @@ git pull --no-rebase --no-edit prof main
 git push
 ```
 
-Si `git pull` signale un conflit, c'est le plus souvent qu'un fichier de `outils/` a été modifié : remettez-le
-dans son état d'origine avec `git checkout prof/main -- outils/`, puis terminez avec
-`git commit --no-edit`.
+À la main, un conflit sur un fichier de `outils/` se règle en reprenant la version de l'enseignant :
+`git checkout prof/main -- outils/`, puis `git commit --no-edit`.
 
 ## Données
 
@@ -108,6 +147,7 @@ Les dossiers `donnees/`, `cache/`, `sorties/` et les poids téléchargés dans `
 tp1_vision.py ... tp6_industrialisation.py   les TD, à compléter, mis en ligne un par un (le Jour 5 compte deux fichiers :
                                             tp5a_graphes.py le matin, tp5b_renforcement.py l'après-midi)
 outils/                                     code fourni (chargement, affichage, tests) : ne pas modifier
+recuperer_td.py                             récupère le TD suivant (uv run python recuperer_td.py)
 modeles/                                    modèles fournis et poids pré-entraînés téléchargés
 projet/                                     vos briques du projet Usine 4.0 (partez de brique_modele.py)
 sorties/                                    résultats d'entraînement (non versionnés)
