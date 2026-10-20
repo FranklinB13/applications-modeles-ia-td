@@ -1,6 +1,7 @@
 # Applications et Modèles en IA — TD
 
 Module ING3 option IA, CY Tech
+
 Chaque TD est un notebook **marimo** : un simple fichier Python que l'on ouvre dans le navigateur, avec des
 cellules à exécuter, du code à compléter et des tests automatiques. Les fichiers se versionnent proprement
 avec Git : c'est votre copie de ce dépôt, complétée, que vous rendez à la fin du module.
@@ -163,3 +164,10 @@ Un notebook marimo est un fichier Python : il contient votre code et vos répons
 copie avec ses sorties, dans un dossier `__marimo__/` (par exemple `__marimo__/tp1_vision.html`, ou
 `projet/__marimo__/brique1_classification.html`). Ajoutez ces fichiers `.html` à vos commits : ce sont eux
 qui montrent ce que vous avez obtenu.
+
+## Licences
+
+Le modèle fourni au TD 2, `modeles/tp2_yolov8n_ppe_20ep.pt`, est un YOLOv8n d'[Ultralytics](https://github.com/ultralytics/ultralytics)
+fine-tuné sur le jeu [Construction-PPE](https://docs.ultralytics.com/datasets/detect/construction-ppe/) ; les
+poids YOLOv8 et ce jeu sont distribués sous licence [AGPL-3.0](https://www.gnu.org/licenses/agpl-3.0.html),
+et ce modèle l'est donc aussi.

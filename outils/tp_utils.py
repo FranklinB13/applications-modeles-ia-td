@@ -506,18 +506,22 @@ def charger_yolo(nom: str = "yolov8n.pt"):
         _os.chdir(ancien)
 
 
-def predictions_yolo(modele, images, conf=0.01, iou=0.7, taille=416):
-    """Liste, pour chaque image, de (boîtes (n,4), scores (n,), classes (n,))."""
+def predictions_yolo(modele, images, conf=0.01, iou=0.7, taille=416, agnostique=False):
+    """Liste, pour chaque image, de (boîtes (n,4), scores (n,), classes (n,)).
+
+    agnostique=True : la NMS compare toutes les boîtes entre elles, quelle que soit leur classe (par défaut, elle
+    travaille classe par classe, et deux boîtes de classes différentes peuvent rester sur le même objet)."""
     sorties = []
-    for r in modele.predict([str(p) for p in images], conf=conf, iou=iou, imgsz=taille, verbose=False, stream=True):
+    for r in modele.predict([str(p) for p in images], conf=conf, iou=iou, imgsz=taille, verbose=False, stream=True,
+                            agnostic_nms=agnostique):
         b = r.boxes
         sorties.append((b.xyxy.cpu().numpy(), b.conf.cpu().numpy(), b.cls.cpu().numpy().astype(int)))
     return sorties
 
 
 def charger_deeplab():
-    """DeepLabV3 (MobileNetV3) pré-entraîné sur un sous-ensemble de COCO, avec les 21 classes de Pascal VOC
-    (classe 15 : personne)."""
+    """DeepLabV3 (MobileNetV3) pré-entraîné sur un sous-ensemble de COCO, avec les 20 classes de Pascal VOC plus
+    le fond, soit 21 sorties (classe 15 : personne)."""
     import torchvision
 
     w = torchvision.models.segmentation.DeepLabV3_MobileNet_V3_Large_Weights.DEFAULT
