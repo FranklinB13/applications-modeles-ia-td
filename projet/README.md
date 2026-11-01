@@ -1,6 +1,7 @@
 # Projet Usine 4.0
 
-Un fichier marimo par brique (brique1_classification.py, ...). Le sujet complet est distribué au Jour 1.
+Le sujet, l'organisation et la notation sont dans [`SUJET.md`](SUJET.md).
 
-Pour démarrer une brique, copiez `brique_modele.py` sous le nom de la brique, puis ouvrez la copie avec
-`marimo edit projet/<nom de la brique>.py` depuis la racine du dépôt.
+Les notebooks du projet se rangent ici, organisés comme vous le souhaitez. Pour en démarrer un, vous pouvez
+copier `brique_modele.py` et l'ouvrir avec `marimo edit projet/<nom du fichier>.py` depuis la racine du dépôt.
+Remplacez ce fichier par votre propre README : il doit dire dans quel ordre lancer vos notebooks.

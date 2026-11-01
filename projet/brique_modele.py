@@ -35,8 +35,8 @@ def _(mo):
 
     **Mode d'emploi de ce modèle**
 
-    - Copiez ce fichier dans `projet/` sous le nom de la brique indiqué à la fin du TD
-      (`brique1_classification.py`, `brique2_localisation.py`, `brique3_anomalies.py`, `brique4_defauts_rares.py`),
+    - Copiez ce fichier dans `projet/` (par exemple sous le nom indiqué à la fin du TD,
+      `brique1_classification.py` ; le sujet est dans `projet/SUJET.md`),
       puis ouvrez la copie : `marimo edit projet/brique1_classification.py`.
     - Les fonctions fournies restent accessibles par `tp.` (chargement des données, affichage, cache).
       Les fonctions que vous avez écrites dans un TD ne s'importent pas d'un notebook à l'autre : copiez dans
