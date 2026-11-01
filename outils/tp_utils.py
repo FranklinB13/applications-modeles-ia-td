@@ -289,22 +289,8 @@ def _classe_neu(p: Path):
     return _NEU_PREFIXES.get(nom.split("_")[0])
 
 
-def charger_neu(n_train_par_classe: int = 30, n_test_par_classe: int = 100, graine: int = 0,
-                n_val_par_classe: int | None = None):
-    """Images de défauts d'acier NEU-DET (6 classes), à placer dans donnees/NEU/ (voir README).
-
-    Renvoie (images_train, y_train, images_test, y_test, noms_classes).
-    Avec n_val_par_classe, renvoie (images_train, y_train, images_val, y_val, images_test, y_test, noms_classes).
-    Les images de chaque classe sont mélangées une seule fois (graine fixe) : le test est pris en premier, puis la
-    validation, puis l'entraînement. Le test ne dépend donc ni de la taille de l'entraînement ni de la présence d'une
-    validation, et l'entraînement à 10 images par classe est inclus dans celui à 30.
-    """
-    if MODE_TEST:
-        a, b, c, d, _ = _pets_synthetiques(n_train_par_classe, 20, graine, n_classes=6)
-        if n_val_par_classe is None:
-            return a, b, c, d, NEU_CLASSES
-        v, w, _, _, _ = _pets_synthetiques(min(n_val_par_classe, 10), 1, graine + 1, n_classes=6)
-        return a, b, v, w, c, d, NEU_CLASSES
+def _neu_images():
+    """Les images NEU-DET de donnees/NEU/, sans doublons, avec leur classe (indices dans NEU_CLASSES)."""
     dossier = DONNEES / "NEU"
     fichiers = sorted(p for p in dossier.rglob("*") if p.suffix.lower() in {".bmp", ".jpg", ".jpeg", ".png"})
     fichiers = [p for p in fichiers if _classe_neu(p)]
@@ -315,20 +301,66 @@ def charger_neu(n_train_par_classe: int = 30, n_test_par_classe: int = 100, grai
         if p.name not in vus:
             vus.add(p.name)
             uniques.append(p)
-    y = [NEU_CLASSES.index(_classe_neu(p)) for p in uniques]
+    return uniques, [NEU_CLASSES.index(_classe_neu(p)) for p in uniques]
+
+
+def _neu_parties(y, n_test_par_classe, n_val_par_classe, graine):
+    """Indices de test, de validation et du reste (entraînement possible), tirés classe par classe."""
     rng = np.random.default_rng(graine)
     y_arr = np.asarray(y)
     nv = n_val_par_classe or 0
-    i_te, i_va, i_tr = [], [], []
+    i_te, i_va, i_reste = [], [], []
     for c in np.unique(y_arr):
         ids = rng.permutation(np.flatnonzero(y_arr == c)).tolist()
-        i_te += ids[:n_test_par_classe]
-        i_va += ids[n_test_par_classe:n_test_par_classe + nv]
-        i_tr += ids[n_test_par_classe + nv:n_test_par_classe + nv + n_train_par_classe]
+        i_te.append(ids[:n_test_par_classe])
+        i_va.append(ids[n_test_par_classe:n_test_par_classe + nv])
+        i_reste.append(ids[n_test_par_classe + nv:])
+    return i_te, i_va, i_reste
+
+
+def charger_neu(n_train_par_classe: int = 30, n_test_par_classe: int = 100, graine: int = 0,
+                n_val_par_classe: int | None = None):
+    """Images de défauts d'acier NEU-DET (6 classes), à placer dans donnees/NEU/ (voir README).
+
+    Renvoie (images_train, y_train, images_test, y_test, noms_classes).
+    Avec n_val_par_classe, renvoie (images_train, y_train, images_val, y_val, images_test, y_test, noms_classes).
+    Les images de chaque classe sont mélangées une seule fois (graine fixe) : le test est pris en premier, puis la
+    validation, puis l'entraînement. Le test ne dépend donc ni de la taille de l'entraînement ni de la présence d'une
+    validation, et l'entraînement à 10 images par classe est inclus dans celui à 30. Le découpage est le même que
+    celui de decoupage_neu (mêmes valeurs de n_test_par_classe, n_val_par_classe et graine).
+    """
+    if MODE_TEST:
+        a, b, c, d, _ = _pets_synthetiques(n_train_par_classe, 20, graine, n_classes=6)
+        if n_val_par_classe is None:
+            return a, b, c, d, NEU_CLASSES
+        v, w, _, _, _ = _pets_synthetiques(min(n_val_par_classe, 10), 1, graine + 1, n_classes=6)
+        return a, b, v, w, c, d, NEU_CLASSES
+    uniques, y = _neu_images()
+    i_te, i_va, i_reste = _neu_parties(y, n_test_par_classe, n_val_par_classe, graine)
+    i_tr = [i for r in i_reste for i in r[:n_train_par_classe]]
+    i_te, i_va = [i for r in i_te for i in r], [i for r in i_va for i in r]
     jeu = lambda idx: ([uniques[i] for i in sorted(idx)], [y[i] for i in sorted(idx)])
     if n_val_par_classe is None:
         return jeu(i_tr) + jeu(i_te) + (NEU_CLASSES,)
     return jeu(i_tr) + jeu(i_va) + jeu(i_te) + (NEU_CLASSES,)
+
+
+def decoupage_neu(n_test_par_classe: int = 100, n_val_par_classe: int = 20, graine: int = 0) -> dict:
+    """Découpage commun de NEU-DET, pour la classification et pour la détection.
+
+    Renvoie un dictionnaire {nom de l'image sans extension : "train", "val" ou "test"}. Le test et la validation
+    sont exactement ceux de charger_neu avec les mêmes paramètres ; toutes les autres images sont en "train"
+    (charger_neu n'en prend qu'une partie, selon n_train_par_classe). À passer à voc_vers_yolo(parties=...)
+    pour que le détecteur et le classifieur soient mesurés sur les mêmes images de test.
+    """
+    uniques, y = _neu_images()
+    i_te, i_va, i_reste = _neu_parties(y, n_test_par_classe, n_val_par_classe, graine)
+    parties = {}
+    for nom, groupes in (("test", i_te), ("val", i_va), ("train", i_reste)):
+        for r in groupes:
+            for i in r:
+                parties[uniques[i].stem] = nom
+    return parties
 
 
 # --------------------------------------------------------------------------
@@ -531,8 +563,13 @@ def charger_deeplab():
 
 
 def voc_vers_yolo(dossier_source: Path, dossier_cible: Path, classes: list[str], graine: int = 0,
-                  proportions=(0.7, 0.15, 0.15)) -> Path:
-    """Convertit des annotations Pascal VOC (.xml) en jeu de données YOLO (train/val/test). Renvoie la config."""
+                  proportions=(0.7, 0.15, 0.15), parties: dict | None = None) -> Path:
+    """Convertit des annotations Pascal VOC (.xml) en jeu de données YOLO (train/val/test). Renvoie la config.
+
+    Sans parties, les images sont réparties au hasard selon proportions. Avec parties (par exemple
+    decoupage_neu()), chaque image va dans la partie indiquée pour son nom ; les images absentes sont ignorées.
+    Pour éviter un mélange avec d'anciens fichiers, utilisez un dossier_cible vide.
+    """
     import shutil
     import xml.etree.ElementTree as ET
 
@@ -543,7 +580,7 @@ def voc_vers_yolo(dossier_source: Path, dossier_cible: Path, classes: list[str],
     rng = np.random.default_rng(graine)
     ordre = rng.permutation(len(xmls))
     n_tr, n_va = int(proportions[0] * len(xmls)), int(proportions[1] * len(xmls))
-    parties = {i: ("train" if r < n_tr else "val" if r < n_tr + n_va else "test") for r, i in enumerate(ordre)}
+    au_hasard = {i: ("train" if r < n_tr else "val" if r < n_tr + n_va else "test") for r, i in enumerate(ordre)}
     for i, x in enumerate(xmls):
         racine = ET.parse(x).getroot()
         nom = Path(racine.findtext("filename") or x.stem).stem
@@ -559,7 +596,12 @@ def voc_vers_yolo(dossier_source: Path, dossier_cible: Path, classes: list[str],
             bb = o.find("bndbox")
             x1, y1, x2, y2 = (float(bb.findtext(k)) for k in ("xmin", "ymin", "xmax", "ymax"))
             lignes.append(f"{classes.index(c)} {(x1 + x2) / 2 / w:.6f} {(y1 + y2) / 2 / h:.6f} {(x2 - x1) / w:.6f} {(y2 - y1) / h:.6f}")
-        p = parties[i]
+        if parties is None:
+            p = au_hasard[i]
+        elif nom in parties:
+            p = parties[nom]
+        else:
+            continue
         (dossier_cible / "images" / p).mkdir(parents=True, exist_ok=True)
         (dossier_cible / "labels" / p).mkdir(parents=True, exist_ok=True)
         shutil.copy(images[nom], dossier_cible / "images" / p / images[nom].name)
