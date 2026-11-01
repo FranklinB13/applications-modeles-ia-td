@@ -54,7 +54,7 @@ def _(mo):
     mo.md(r"""
     # TD 1 — Vision avancée et transfer learning
 
-    **Module Applications et Modèles en IA · ING3 IA · durée : 3h30, de 13h30 à 17h (l'étape 11 se poursuit après la séance)**
+    **Module Application au deep learning · ING3 IA · durée : 3h30, de 13h30 à 17h (l'étape 11 se poursuit après la séance)**
 
     En entreprise, presque aucun projet de vision ne part de zéro : on prend un modèle pré-entraîné,
     on l'adapte à son problème avec quelques centaines d'images, et on passe l'essentiel de son temps

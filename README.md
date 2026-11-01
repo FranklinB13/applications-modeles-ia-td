@@ -1,4 +1,4 @@
-# Applications et Modèles en IA — TD
+# Application au deep learning — TD
 
 Module ING3 option IA, CY Tech
 

@@ -1,4 +1,4 @@
-"""Outils communs aux TD du module « Applications et Modèles en IA ».
+"""Outils communs aux TD du module « Application au deep learning ».
 
 Ce fichier est fourni : vous n'avez pas à le modifier. Il regroupe ce qui n'est
 pas l'objet du TD (chargement des données, affichage, cache, exécution des tests)

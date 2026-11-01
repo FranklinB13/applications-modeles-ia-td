@@ -1,7 +1,7 @@
 [project]
 name = "td-applications-modeles-ia"
 version = "1.0"
-description = "TD du module Applications et Modèles en IA (ING3 option IA)"
+description = "TD du module Application au deep learning (ING3 option IA)"
 requires-python = ">=3.10"
 dependencies = [
     "torch>=2.3",

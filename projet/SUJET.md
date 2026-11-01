@@ -61,10 +61,6 @@ Quelle que soit votre approche, votre étude doit permettre à l'usine de vous f
 
 Groupes de 3 ou 4. Chaque groupe envoie sa composition à l'enseignant.
 
-Avant le Jour 4, chaque groupe envoie une note de cadrage d'une page : ce que fera votre système, le volet
-choisi, les métriques envisagées, la répartition du travail. Elle n'est pas notée ; elle sert à valider votre
-périmètre et à vous faire un retour tôt.
-
 ## Rendu
 
 À rendre deux semaines après le Jour 6, à 23 h 59, sur le dépôt privé du groupe (l'enseignant, FranklinB13,

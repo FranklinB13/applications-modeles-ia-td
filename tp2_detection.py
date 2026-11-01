@@ -34,7 +34,7 @@ def _(mo):
     mo.md(r"""
     # TD 2 — Détection et segmentation
 
-    **Module Applications et Modèles en IA · ING3 IA · durée : 3h30 (l'étape 11 peut se terminer en autonomie)**
+    **Module Application au deep learning · ING3 IA · durée : 3h30 (l'étape 11 peut se terminer en autonomie)**
 
     Classer une image ne suffit pas toujours : sur un chantier, on veut savoir **où** se trouve chaque personne
     et si elle porte son casque. C'est un problème de détection. Cet après-midi, vous allez coder vous-même les
