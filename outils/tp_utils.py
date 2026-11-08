@@ -439,7 +439,10 @@ def matrice_confusion(y_vrai, y_pred, noms, taille: float = 9):
 MODELES = RACINE / "modeles"
 MODELES.mkdir(exist_ok=True)
 
-PPE_URL = "https://github.com/ultralytics/assets/releases/download/v0.0.0/construction-ppe.zip"
+# Copie de la version d'octobre 2026 du jeu Construction-PPE (Ultralytics, AGPL-3.0) : celle du TD 2 et du modèle
+# fourni. Ultralytics a remplacé son archive le 3 novembre 2026 par une autre version (1 000 images, 12 classes,
+# sans partie test), incompatible avec le TD.
+PPE_URL = "https://github.com/FranklinB13/applications-modeles-ia-td/releases/download/donnees-construction-ppe/construction-ppe-td.zip"
 PPE_CLASSES = ["helmet", "gloves", "vest", "boots", "goggles", "none", "Person",
                "no_helmet", "no_goggle", "no_gloves", "no_boots"]
 
@@ -457,14 +460,29 @@ def _ecrire_config_yolo(config: Path, racine: Path, classes: list[str]) -> Path:
     return config
 
 
+def _ppe_complet(racine: Path) -> bool:
+    """Vrai si `racine` contient la version du TD : trois parties (train, val, test) et les 11 classes."""
+    parties = all((racine / "images" / p).is_dir() and (racine / "labels" / p).is_dir() for p in ("train", "val", "test"))
+    config = racine / "data.yaml"
+    return parties and config.exists() and "none" in config.read_text(encoding="utf-8", errors="replace")
+
+
 def preparer_construction_ppe() -> Path:
-    """Télécharge (une fois) le jeu Construction-PPE et renvoie le chemin de son fichier de configuration YOLO."""
+    """Télécharge (une fois) le jeu Construction-PPE et renvoie le chemin de son fichier de configuration YOLO.
+
+    Un dossier incomplet, ou téléchargé dans une autre version, est remplacé automatiquement."""
     import shutil
+    import urllib.error
     import zipfile
 
     racine = DONNEES / "construction-ppe"
-    if not (racine / "images" / "train").exists():
-        archive = _telecharger(PPE_URL, DONNEES / "construction-ppe.zip")
+    if not _ppe_complet(racine):
+        archive = DONNEES / "construction-ppe-td.zip"
+        try:
+            _telecharger(PPE_URL, archive)
+        except urllib.error.HTTPError as e:
+            raise RuntimeError(f"Le jeu Construction-PPE n'a pas pu être téléchargé (erreur {e.code}). "
+                               "Prévenez l'enseignant.") from None
         # On décompresse dans un dossier provisoire : le dossier définitif n'apparaît qu'une fois complet.
         provisoire = DONNEES / "construction-ppe.part"
         shutil.rmtree(provisoire, ignore_errors=True)
@@ -474,9 +492,20 @@ def preparer_construction_ppe() -> Path:
         except zipfile.BadZipFile:
             archive.unlink()
             raise RuntimeError("L'archive Construction-PPE est illisible. Relancez la cellule : elle sera téléchargée de nouveau.")
+        # Si l'archive range tout dans un sous-dossier unique, on le remonte d'un niveau.
+        contenu = [p for p in provisoire.iterdir() if not p.name.startswith(".")]
+        if len(contenu) == 1 and contenu[0].is_dir():
+            provisoire = contenu[0]
+        if not _ppe_complet(provisoire):
+            archive.unlink()
+            shutil.rmtree(DONNEES / "construction-ppe.part", ignore_errors=True)
+            raise RuntimeError("L'archive Construction-PPE téléchargée n'a pas la structure attendue "
+                               "(images et labels en train, val et test). Prévenez l'enseignant.")
         shutil.rmtree(racine, ignore_errors=True)
         provisoire.rename(racine)
+        shutil.rmtree(DONNEES / "construction-ppe.part", ignore_errors=True)
         archive.unlink()
+        (DONNEES / "construction-ppe.zip").unlink(missing_ok=True)   # archive d'une ancienne version du script
     return _ecrire_config_yolo(racine / "ppe.yaml", racine, PPE_CLASSES)
 
 
