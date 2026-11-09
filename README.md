@@ -147,6 +147,7 @@ Les dossiers `donnees/`, `cache/`, `sorties/` et les poids téléchargés dans `
 tp1_vision.py ... tp6_industrialisation.py   les TD, à compléter, mis en ligne un par un (le Jour 5 compte deux fichiers :
                                             tp5a_graphes.py le matin, tp5b_renforcement.py l'après-midi)
 outils/                                     code fourni (chargement, affichage, tests) : ne pas modifier
+cours/                                      diapositives de chaque jour (PDF), mises en ligne avec le TD, et sujet du projet
 recuperer_td.py                             récupère le TD suivant (uv run python recuperer_td.py)
 modeles/                                    modèles fournis et poids pré-entraînés téléchargés
 projet/                                     vos briques du projet Usine 4.0 (partez de brique_modele.py)
