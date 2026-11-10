@@ -295,16 +295,25 @@ def _(mo):
     mo.md(r"""
     ## Étape 3 — Le jeu de données Construction-PPE
 
-    Des photos de chantier annotées avec les équipements de protection individuelle (EPI) : casque, gilet,
-    gants, bottes, lunettes, et l'**absence** de certains d'entre eux (`no_helmet`, `no_goggle`, `no_gloves`,
-    `no_boots` ; rien pour le gilet). C'est un vrai cas
-    de sécurité industrielle : détecter automatiquement une personne sans casque sur une zone à risque.
+    Des images de chantier annotées avec les équipements de protection individuelle (EPI) : casque, gants,
+    gilet, bottes, lunettes, et l'**absence** de chacun d'eux. D'après sa documentation, le jeu mêle des photos
+    et des images générées par un modèle, et une absence n'est annotée que si la partie du corps concernée est
+    visible. C'est un vrai cas de sécurité industrielle : détecter automatiquement une personne sans casque sur
+    une zone à risque.
 
-    1132 images d'entraînement, 143 de validation, 141 de test, 11 classes, numérotées comme dans `ppe.yaml` :
-    0 `helmet` (casque), 1 `gloves` (gants), 2 `vest` (gilet), 3 `boots` (bottes), 4 `goggles` (lunettes),
-    5 `none` (classe que la documentation qualifie seulement de « générique »), 6 `Person` (la personne entière),
-    et les quatre absences 7 `no_helmet`, 8 `no_goggle`, 9 `no_gloves`, 10 `no_boots`. Environ 180 Mo,
-    téléchargés une fois.
+    Ultralytics publie ce jeu avec 800 images d'entraînement et 200 de validation, sans partie test.
+    `tp.preparer_construction_ppe` le télécharge une fois (environ 650 Mo, puis 1 à 2 minutes de préparation),
+    réduit les images (640 px au plus sur le grand côté) et en fait trois parties, toujours les mêmes :
+    700 images d'entraînement, 100 de validation (tirées une fois pour toutes parmi les 800 d'entraînement) et
+    200 de test (la validation officielle). 12 classes, numérotées comme dans `ppe.yaml` : 0 `helmet` (casque),
+    1 `gloves` (gants), 2 `vest` (gilet), 3 `boots` (bottes), 4 `goggles` (lunettes), 5 `Person` (la personne
+    entière), les absences 6 `no_helmet`, 7 `no_goggle`, 8 `no_gloves`, 9 `no_boots`, 11 `no_vest`, et
+    10 `forklift` (chariot élévateur).
+
+    Source : *Ultralytics Construction-PPE Dataset*, Ultralytics, novembre 2026, licence
+    [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) ([documentation](https://docs.ultralytics.com/datasets/detect/construction-ppe/)) ;
+    les modifications (taille des images, découpage en trois parties) sont décrites dans
+    `donnees/construction-ppe/MODIFICATIONS.txt`.
 
     Chaque image a un fichier `.txt` du même nom, fourni avec le jeu (format YOLO : une ligne `classe cx cy w h`
     par boîte, centre et taille divisés par la taille de l'image). `tp.preparer_construction_ppe` écrit
@@ -327,9 +336,8 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(bouton_ppe, mo, tp):
-    _deja_la = (tp.DONNEES / "construction-ppe" / "images" / "train").exists()
-    mo.stop(not (tp.lance(bouton_ppe) or _deja_la), mo.md("Cliquez sur le bouton pour charger les données."))
-    with mo.status.spinner(title="Téléchargement et préparation..."):
+    mo.stop(not (tp.lance(bouton_ppe) or tp.ppe_pret()), mo.md("Cliquez sur le bouton pour charger les données."))
+    with mo.status.spinner(title="Téléchargement (environ 650 Mo, une seule fois) et préparation des images..."):
         config_ppe = tp.preparer_construction_ppe()
     dossier_ppe = config_ppe.parent
     images_train = tp.lister_images(dossier_ppe, "train")
@@ -431,8 +439,8 @@ def _(mo):
     mo.md(r"""
     Quel que soit le seuil, il ne peut pas détecter un casque ou son absence : ces classes n'existent pas
     dans COCO. Il faudra le **fine-tuner** (étape 6) : comme au TD 1, on garde le réseau pré-entraîné, mais
-    Ultralytics remplace les dernières couches de classification de la tête par des couches à 11 sorties (la
-    ligne de poids de `person`, dans COCO, est recopiée pour `Person` ; les 10 autres partent de valeurs neuves),
+    Ultralytics remplace les dernières couches de classification de la tête par des couches à 12 sorties (la
+    ligne de poids de `person`, dans COCO, est recopiée pour `Person` ; les 11 autres partent de valeurs neuves),
     puis réentraîne tout le réseau sur nos images. Les couches reprises partent de bons poids, ce qui va beaucoup
     plus vite qu'un entraînement depuis zéro.
 
@@ -470,8 +478,9 @@ def _(mo):
     mo.md(r"""
     ## Étape 5 — Baseline classique : détecter les casques par la couleur
 
-    Les casques de chantier sont souvent jaunes, orange ou blancs. Le jaune et l'orange sont des couleurs vives et
-    saturées ; le blanc, peu saturé, échappe à cette règle : la baseline ne vise que les casques jaunes et orange.
+    Sur ces images, les casques sont de toutes les couleurs : blancs surtout, mais aussi jaunes, bleus, rouges,
+    verts ou orange. Une règle de couleur ne vise qu'une plage de teintes : celle-ci cherche les casques jaunes
+    et orange, des couleurs vives et saturées ; le blanc, peu saturé, lui échappe, comme le bleu et le vert.
     Une méthode
     sans apprentissage : convertir l'image en **HSV** (teinte, saturation, valeur, à peu près la luminosité), garder les pixels dont
     la teinte est dans la plage, et la saturation et la valeur (luminosité) assez élevées, puis entourer chaque région de pixels retenus par une boîte.
@@ -556,21 +565,21 @@ def _(mo):
     Le masque est d'abord nettoyé par une ouverture morphologique, qui efface les petits amas de pixels isolés.
     En plus de la couleur, la baseline applique deux règles de forme écrites à la main : une boîte de casque
     a un rapport largeur / hauteur entre 0,6 et 2,2, et occupe moins de 3 % de l'image. L'aire minimale est
-    comptée sur l'image dont le plus grand côté est ramené à 640 px au plus (les images plus petites ne sont pas
-    agrandies). Les valeurs par défaut viennent d'une recherche en grille (on essaie toutes les combinaisons
-    d'une liste de valeurs) sur la validation (environ 3 300 réglages, meilleur F1). Elles débordent un peu sur le rouge et
-    coupent le haut du jaune : c'est ce qui marchait le mieux sur ces images. À vous de voir si vous faites mieux.
+    comptée en pixels, sur les images du jeu (640 px au plus sur le grand côté). Les valeurs par défaut viennent
+    d'une recherche en grille (on essaie toutes les combinaisons d'une liste de valeurs) sur la validation
+    (3 200 réglages, meilleur F1). Elles laissent de côté le rouge et le début de l'orange, et ne gardent que des
+    couleurs vives et claires : c'est ce qui marchait le mieux sur ces images. À vous de voir si vous faites mieux.
     """)
     return
 
 
 @app.cell(hide_code=True)
 def _(images_val, mo):
-    hsv_teinte = mo.ui.range_slider(0, 179, value=[0, 30], label="Teinte", show_value=True)
-    hsv_sat = mo.ui.slider(0, 255, value=70, label="Saturation minimale", show_value=True)
-    hsv_val = mo.ui.slider(0, 255, value=150, label="Valeur (luminosité) minimale", show_value=True)
-    hsv_aire = mo.ui.slider(20, 3000, step=20, value=1800, label="Aire minimale (pixels)", show_value=True)
-    hsv_image = mo.ui.slider(0, len(images_val) - 1, value=min(10, len(images_val) - 1), label="Image de validation affichée", show_value=True)
+    hsv_teinte = mo.ui.range_slider(0, 179, value=[15, 30], label="Teinte", show_value=True)
+    hsv_sat = mo.ui.slider(0, 255, value=100, label="Saturation minimale", show_value=True)
+    hsv_val = mo.ui.slider(0, 255, value=175, label="Valeur (luminosité) minimale", show_value=True)
+    hsv_aire = mo.ui.slider(20, 3000, step=20, value=900, label="Aire minimale (pixels)", show_value=True)
+    hsv_image = mo.ui.slider(0, len(images_val) - 1, value=min(53, len(images_val) - 1), label="Image de validation affichée", show_value=True)
     mo.vstack([mo.hstack([hsv_teinte, hsv_sat]), mo.hstack([hsv_val, hsv_aire]), hsv_image])
     return hsv_aire, hsv_image, hsv_sat, hsv_teinte, hsv_val
 
@@ -685,8 +694,9 @@ def _(mo):
     mo.md(r"""
     ## Étape 6 — Fine-tuning de YOLO
 
-    Sur CPU, un fine-tuning complet de YOLOv8n sur ce jeu prend environ 5 minutes **par époque** (416 px, les
-    1132 images) ; le modèle fourni en a reçu 20, soit 1 h 41 (Ultralytics en prévoit 100 par défaut). On procède
+    Sur CPU, un fine-tuning complet de YOLOv8n sur ce jeu prend environ 2 min 30 **par époque** (416 px, les
+    700 images, sur la machine qui a préparé le TD) ; le modèle fourni en a reçu 20, soit 50 minutes (Ultralytics
+    en prévoit 100 par défaut). On procède
     donc en deux temps :
 
     1. **Vous lancez un fine-tuning court** (une partie des images, 2 époques, résolution réduite) pour voir
@@ -737,7 +747,9 @@ def _(
         (_dossier / "duree.txt").write_text(f"{_c.secondes:.0f}")
     duree_court = float((_dossier / "duree.txt").read_text()) if (_dossier / "duree.txt").exists() else float("nan")
     modele_court = tp.charger_yolo(str(_poids)) if _poids.exists() else None
-    mo.md("Cliquez pour lancer (2 à 4 minutes avec les réglages par défaut). La suite du TD fonctionne aussi sans."
+    if modele_court is not None and list(modele_court.names.values()) != tp.PPE_CLASSES:
+        modele_court = None   # entraîné sur une ancienne version du jeu de données : à relancer
+    mo.md("Cliquez pour lancer (1 à 3 minutes avec les réglages par défaut). La suite du TD fonctionne aussi sans."
           if modele_court is None else f"Fine-tuning court terminé en {duree_court:.0f} s.")
     return duree_court, modele_court
 
@@ -1060,7 +1072,7 @@ def _(bouton_seg, images_val, mo, modele_fourni, np, time, torch, tp):
 
     _transfo = _T.Compose([_T.ToTensor(), _T.Normalize(tp.MOYENNE, tp.ECART)])
     _imgs, _titres = [], []
-    for _p in images_val[10:13]:
+    for _p in [images_val[_i] for _i in (30, 48, 10)]:
         _rgb = tp.lire_image_rgb(_p, cote_max=640)
         _pil = tp.Image.fromarray(_rgb)
         _t = time.perf_counter()
@@ -1071,11 +1083,11 @@ def _(bouton_seg, images_val, mo, modele_fourni, np, time, torch, tp):
         # Ultralytics lit un tableau NumPy comme une image BGR (la convention d'OpenCV) : on lui passe donc
         # l'image PIL, qui est en RGB. Avec le tableau `_rgb`, le rouge et le bleu seraient inversés.
         _t = time.perf_counter()
-        _r = modele_fourni.predict(_pil, conf=0.3, imgsz=416, classes=[6], verbose=False)[0]
+        _r = modele_fourni.predict(_pil, conf=0.3, imgsz=416, classes=[tp.PPE_CLASSES.index("Person")], verbose=False)[0]
         _boites = _r.boxes.xyxy.numpy()
         _masques = _sam(_pil, bboxes=_boites.tolist(), verbose=False)[0].masks.data.numpy() if len(_boites) else np.zeros((0, *_rgb.shape[:2]))
         _t_sam = (time.perf_counter() - _t) * 1000
-        _annotees = int((tp.lire_annotations(_p)[1] == 6).sum())
+        _annotees = int((tp.lire_annotations(_p)[1] == tp.PPE_CLASSES.index("Person")).sum())
         _inst = np.zeros(_rgb.shape[:2])
         for _k, _m in enumerate(_masques):
             _inst[_m > 0] = _k + 1
@@ -1288,7 +1300,7 @@ def _(mo):
       aux annotations officielles avec votre fonction `iou`. Le format YOLO donne, par ligne, `classe cx cy w h`,
       le centre et la taille divisés par la taille de l'image : convertissez en `[x1, y1, x2, y2]` en pixels
       avant d'appeler `iou` (`tp.lire_annotations` le fait pour les fichiers du jeu). Combien de temps faudrait-il pour annoter les
-      1132 images ? Vos boîtes sont-elles d'accord avec celles du jeu ?
+      700 images d'entraînement ? Vos boîtes sont-elles d'accord avec celles du jeu ?
     - **Faster R-CNN.** Comparez la vitesse de `torchvision.models.detection.fasterrcnn_mobilenet_v3_large_fpn`
       (pré-entraîné COCO) à celle de YOLOv8n sur la classe personne (classe 1 dans torchvision, où 0 est le fond ;
       classe 0 chez YOLO).

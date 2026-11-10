@@ -14,7 +14,7 @@ dependencies = [
     "matplotlib>=3.8",
     "pillow>=10.0",
     "opencv-python-headless>=4.8",
-    # 8.4.171 : la version qui a enregistré le modèle fourni modeles/tp2_yolov8n_ppe_20ep.pt
+    # modèle fourni modeles/tp2_yolov8n_ppe_20ep.pt enregistré avec la version 8.4.175 (celle de uv.lock)
     "ultralytics>=8.4.171",
     "pandas>=2.0",
     "open_clip_torch>=2.24",

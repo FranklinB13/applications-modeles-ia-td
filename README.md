@@ -130,7 +130,7 @@ git push
 | Données | Utilisées dans | Comment les obtenir |
 |---|---|---|
 | Oxford-IIIT Pet | TD 1 | Téléchargé automatiquement (`verifier_installation.py --donnees`) |
-| Construction-PPE (EPI sur chantier) | TD 2 | Téléchargé automatiquement (`verifier_installation.py --donnees`) |
+| Construction-PPE (EPI sur chantier) | TD 2, TD 4 | Téléchargé automatiquement (`verifier_installation.py --donnees`, environ 650 Mo) |
 | ETTh1 (transformateur électrique) | TD 3 | Téléchargé automatiquement |
 | SKAB (capteurs d'une pompe) | Projet, brique 3 | Téléchargé automatiquement |
 | Fashion-MNIST (vêtements) | TD 4, pour aller plus loin | Téléchargé automatiquement |
@@ -169,6 +169,13 @@ qui montrent ce que vous avez obtenu.
 ## Licences
 
 Le modèle fourni au TD 2, `modeles/tp2_yolov8n_ppe_20ep.pt`, est un YOLOv8n d'[Ultralytics](https://github.com/ultralytics/ultralytics)
-fine-tuné sur le jeu [Construction-PPE](https://docs.ultralytics.com/datasets/detect/construction-ppe/) ; les
-poids YOLOv8 et ce jeu sont distribués sous licence [AGPL-3.0](https://www.gnu.org/licenses/agpl-3.0.html),
-et ce modèle l'est donc aussi.
+fine-tuné sur le jeu Construction-PPE ; les poids YOLOv8 sont distribués sous licence
+[AGPL-3.0](https://www.gnu.org/licenses/agpl-3.0.html), et ce modèle l'est donc aussi.
+
+Le jeu Construction-PPE (TD 2 et TD 4) n'est pas copié dans ce dépôt : `outils/tp_utils.py` le télécharge depuis
+le site d'Ultralytics. Source : *Ultralytics Construction-PPE Dataset*, Ultralytics team, novembre 2026, licence
+[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)
+([documentation](https://docs.ultralytics.com/datasets/detect/construction-ppe/)). Modifications faites à la
+préparation : images réduites (640 px au plus sur le grand côté) ; la validation officielle (200 images) devient
+le test, et 100 des 800 images d'entraînement deviennent la validation (détail dans
+`donnees/construction-ppe/MODIFICATIONS.txt`).

@@ -439,12 +439,31 @@ def matrice_confusion(y_vrai, y_pred, noms, taille: float = 9):
 MODELES = RACINE / "modeles"
 MODELES.mkdir(exist_ok=True)
 
-# Copie de la version d'octobre 2026 du jeu Construction-PPE (Ultralytics, AGPL-3.0) : celle du TD 2 et du modèle
-# fourni. Ultralytics a remplacé son archive le 3 novembre 2026 par une autre version (1 000 images, 12 classes,
-# sans partie test), incompatible avec le TD.
-PPE_URL = "https://github.com/FranklinB13/applications-modeles-ia-td/releases/download/donnees-construction-ppe/construction-ppe-td.zip"
-PPE_CLASSES = ["helmet", "gloves", "vest", "boots", "goggles", "none", "Person",
-               "no_helmet", "no_goggle", "no_gloves", "no_boots"]
+# Construction-PPE, version de novembre 2026 (Ultralytics, licence CC BY 4.0), téléchargé depuis l'archive officielle :
+# 800 images d'entraînement et 200 de validation, 12 classes, pas de partie test. preparer_construction_ppe en fait
+# trois parties, toujours les mêmes : la validation officielle devient le test, et 100 des 800 images d'entraînement
+# deviennent la validation. Les images sont réduites (plus grand côté 640 px) : le TD travaille en 320 ou 416 px.
+PPE_URL = "https://github.com/ultralytics/assets/releases/download/v0.0.0/construction-ppe.zip"
+PPE_CLASSES = ["helmet", "gloves", "vest", "boots", "goggles", "Person",
+               "no_helmet", "no_goggle", "no_gloves", "no_boots", "forklift", "no_vest"]
+PPE_ATTRIBUTION = ("Ultralytics Construction-PPE Dataset, Ultralytics team, November 2026, CC BY 4.0 "
+                   "(https://docs.ultralytics.com/datasets/detect/construction-ppe/, "
+                   "https://creativecommons.org/licenses/by/4.0/)")
+_PPE_COTE = 640           # plus grand côté des images après préparation, en pixels
+_PPE_N_VAL = 100          # images d'entraînement officielles mises de côté pour la validation
+_PPE_OFFICIEL = {"train": 800, "val": 200}
+_PPE_VERSION = "construction-ppe ultralytics 2026-11, 640 px, train 700 / val 100 / test 200"
+_PPE_MODIFICATIONS = f"""Construction-PPE, préparé pour les TD
+
+Source : {PPE_ATTRIBUTION}
+
+Modifications apportées par tp_utils.preparer_construction_ppe à l'archive officielle :
+- les images sont réduites (plus grand côté {_PPE_COTE} px, JPEG qualité 90) ; les annotations ne changent pas
+  (coordonnées relatives à la taille de l'image) ;
+- la validation officielle (200 images) devient la partie test ;
+- {_PPE_N_VAL} des 800 images d'entraînement officielles deviennent la validation (celles dont l'empreinte SHA-256
+  du nom de fichier est la plus petite : un tirage fixe, le même pour tous) ; les 700 autres restent l'entraînement.
+"""
 
 
 def _ecrire_config_yolo(config: Path, racine: Path, classes: list[str]) -> Path:
@@ -461,51 +480,103 @@ def _ecrire_config_yolo(config: Path, racine: Path, classes: list[str]) -> Path:
 
 
 def _ppe_complet(racine: Path) -> bool:
-    """Vrai si `racine` contient la version du TD : trois parties (train, val, test) et les 11 classes."""
-    parties = all((racine / "images" / p).is_dir() and (racine / "labels" / p).is_dir() for p in ("train", "val", "test"))
-    config = racine / "data.yaml"
-    return parties and config.exists() and "none" in config.read_text(encoding="utf-8", errors="replace")
+    """Vrai si `racine` contient la version préparée attendue (fichier VERSION.txt écrit en dernier)."""
+    version = racine / "VERSION.txt"
+    return version.exists() and version.read_text(encoding="utf-8", errors="replace").strip() == _PPE_VERSION
 
 
-def preparer_construction_ppe() -> Path:
-    """Télécharge (une fois) le jeu Construction-PPE et renvoie le chemin de son fichier de configuration YOLO.
+def ppe_pret() -> bool:
+    """Vrai si Construction-PPE est déjà téléchargé et préparé dans la bonne version."""
+    return _ppe_complet(DONNEES / "construction-ppe")
 
-    Un dossier incomplet, ou téléchargé dans une autre version, est remplacé automatiquement."""
+
+def _preparer_ppe_depuis_zip(archive: Path, cible: Path, progression=None) -> None:
+    """Écrit dans `cible` les trois parties (train, val, test) à partir de l'archive officielle."""
+    import hashlib
+    import re
+    import zipfile
+
+    import yaml
+
+    with zipfile.ZipFile(archive) as z:
+        noms = z.namelist()
+        configs = [n for n in noms if n.rsplit("/", 1)[-1] == "data.yaml"]
+        if len(configs) != 1:
+            raise ValueError("data.yaml introuvable dans l'archive")
+        classes = yaml.safe_load(z.read(configs[0]))["names"]
+        classes = [classes[i] for i in sorted(classes)] if isinstance(classes, dict) else list(classes)
+        if classes != PPE_CLASSES:
+            raise ValueError(f"classes inattendues : {classes}")
+        prefixe = configs[0][: -len("data.yaml")]
+        images = {}
+        for n in noms:
+            m = re.fullmatch(re.escape(prefixe) + r"images/(train|val)/([^/]+\.jpe?g)", n, flags=re.IGNORECASE)
+            if m:
+                images.setdefault(m.group(1), []).append(m.group(2))
+        comptes = {p: len(v) for p, v in images.items()}
+        if comptes != _PPE_OFFICIEL:
+            raise ValueError(f"nombre d'images inattendu : {comptes}")
+        mis_de_cote = set(sorted(images["train"], key=lambda f: hashlib.sha256(f.encode()).hexdigest())[:_PPE_N_VAL])
+        travail = [("val", f, "test") for f in sorted(images["val"])]
+        travail += [("train", f, "val" if f in mis_de_cote else "train") for f in sorted(images["train"])]
+        for p in ("train", "val", "test"):
+            (cible / "images" / p).mkdir(parents=True, exist_ok=True)
+            (cible / "labels" / p).mkdir(parents=True, exist_ok=True)
+        for partie_officielle, fichier, partie in (travail if progression is None else progression(travail)):
+            with z.open(f"{prefixe}images/{partie_officielle}/{fichier}") as f:
+                img = Image.open(f)
+                echelle = _PPE_COTE / max(img.size)
+                if echelle < 1:
+                    taille = (round(img.width * echelle), round(img.height * echelle))
+                    img.draft("RGB", taille)   # décodage JPEG directement à une taille réduite : plus rapide
+                    img = img.convert("RGB").resize(taille, Image.LANCZOS)
+                img.convert("RGB").save(cible / "images" / partie / fichier, quality=90)
+            etiquette = f"{prefixe}labels/{partie_officielle}/{Path(fichier).stem}.txt"
+            contenu = z.read(etiquette) if etiquette in noms else b""
+            (cible / "labels" / partie / f"{Path(fichier).stem}.txt").write_bytes(contenu)
+        for annexe in ("README.md", "LICENSE.txt"):
+            if prefixe + annexe in noms:
+                (cible / annexe).write_bytes(z.read(prefixe + annexe))
+    (cible / "MODIFICATIONS.txt").write_text(_PPE_MODIFICATIONS, encoding="utf-8")
+    (cible / "VERSION.txt").write_text(_PPE_VERSION + "\n", encoding="utf-8")   # en dernier : marque un dossier complet
+
+
+def preparer_construction_ppe(progression=None) -> Path:
+    """Télécharge (une fois, environ 650 Mo) le jeu Construction-PPE, le prépare et renvoie le chemin de son
+    fichier de configuration YOLO.
+
+    Un dossier incomplet, ou préparé dans une autre version, est remplacé automatiquement."""
     import shutil
     import urllib.error
     import zipfile
 
     racine = DONNEES / "construction-ppe"
     if not _ppe_complet(racine):
-        archive = DONNEES / "construction-ppe-td.zip"
+        for ancienne in ("construction-ppe.zip", "construction-ppe-td.zip"):   # archives d'anciennes versions du script
+            (DONNEES / ancienne).unlink(missing_ok=True)
+        archive = DONNEES / "construction-ppe-2026-11.zip"
         try:
             _telecharger(PPE_URL, archive)
         except urllib.error.HTTPError as e:
             raise RuntimeError(f"Le jeu Construction-PPE n'a pas pu être téléchargé (erreur {e.code}). "
                                "Prévenez l'enseignant.") from None
-        # On décompresse dans un dossier provisoire : le dossier définitif n'apparaît qu'une fois complet.
+        # On prépare dans un dossier provisoire : le dossier définitif n'apparaît qu'une fois complet.
         provisoire = DONNEES / "construction-ppe.part"
         shutil.rmtree(provisoire, ignore_errors=True)
         try:
-            with zipfile.ZipFile(archive) as z:
-                z.extractall(provisoire)
+            _preparer_ppe_depuis_zip(archive, provisoire, progression)
         except zipfile.BadZipFile:
+            shutil.rmtree(provisoire, ignore_errors=True)
             archive.unlink()
             raise RuntimeError("L'archive Construction-PPE est illisible. Relancez la cellule : elle sera téléchargée de nouveau.")
-        # Si l'archive range tout dans un sous-dossier unique, on le remonte d'un niveau.
-        contenu = [p for p in provisoire.iterdir() if not p.name.startswith(".")]
-        if len(contenu) == 1 and contenu[0].is_dir():
-            provisoire = contenu[0]
-        if not _ppe_complet(provisoire):
+        except (ValueError, KeyError) as e:
+            shutil.rmtree(provisoire, ignore_errors=True)
             archive.unlink()
-            shutil.rmtree(DONNEES / "construction-ppe.part", ignore_errors=True)
-            raise RuntimeError("L'archive Construction-PPE téléchargée n'a pas la structure attendue "
-                               "(images et labels en train, val et test). Prévenez l'enseignant.")
+            raise RuntimeError(f"L'archive Construction-PPE téléchargée n'est pas celle attendue ({e}). "
+                               "Prévenez l'enseignant.") from None
         shutil.rmtree(racine, ignore_errors=True)
         provisoire.rename(racine)
-        shutil.rmtree(DONNEES / "construction-ppe.part", ignore_errors=True)
         archive.unlink()
-        (DONNEES / "construction-ppe.zip").unlink(missing_ok=True)   # archive d'une ancienne version du script
     return _ecrire_config_yolo(racine / "ppe.yaml", racine, PPE_CLASSES)
 
 
@@ -531,7 +602,7 @@ def lire_annotations(chemin_image: Path):
 
 
 _COULEURS = ["#e6194b", "#3cb44b", "#ffe119", "#4363d8", "#f58231", "#911eb4", "#46f0f0", "#f032e6",
-             "#bcf60c", "#fabebe", "#008080"]
+             "#bcf60c", "#fabebe", "#008080", "#9a6324"]
 
 
 def dessiner_boites(image, boites, classes=None, noms=None, scores=None, epaisseur: int = 3):

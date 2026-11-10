@@ -165,7 +165,7 @@ def _(mo):
 
     On reprend les photos de chantier du TD 2, mais découpées en **vignettes** : chaque vignette contient un seul
     équipement (casque, gants, gilet, bottes, lunettes). Le problème devient une classification à 5 classes.
-    Au TD 2, il a fallu 1 132 images annotées et 100 minutes d'entraînement. CLIP, lui, n'a reçu aucune de ces
+    Au TD 2, il a fallu 700 images annotées et 50 minutes d'entraînement. CLIP, lui, n'a reçu aucune de ces
     annotations. La tâche est toutefois plus simple qu'au TD 2 : chaque vignette est déjà découpée autour de
     l'objet, il ne reste qu'à le nommer.
     """)
@@ -181,8 +181,10 @@ def _(mo):
 
 @app.cell
 def _(bouton_clip, mo, tp):
-    _pret = (tp.MODELES / "clip_vitb32_laion400m.pt").exists() or tp.MODE_TEST
-    mo.stop(not (tp.lance(bouton_clip) or _pret), mo.md("Cliquez pour charger (téléchargement de 600 Mo au premier lancement)."))
+    _pret = ((tp.MODELES / "clip_vitb32_laion400m.pt").exists() and tp.ppe_pret()) or tp.MODE_TEST
+    mo.stop(not (tp.lance(bouton_clip) or _pret),
+            mo.md("Cliquez pour charger (au premier lancement : CLIP, 600 Mo, et Construction-PPE, 650 Mo, "
+                  "s'il n'a pas été chargé au TD 2)."))
     with mo.status.spinner(title="Chargement de CLIP et préparation des vignettes..."):
         clip_modele, clip_pretraitement, clip_tokeniseur = tp.charger_clip()
         dossier_ppe = tp.preparer_construction_ppe().parent
@@ -275,11 +277,11 @@ def _(classer_zero_shot, mo, ok_todo1, tests, tp):
 
 @app.cell
 def _(clip_modele, clip_pretraitement, mo, tp, vignettes):
-    _cache = tp.charger_cache("tp4_emb_vignettes")
+    _cache = tp.charger_cache("tp4_emb_vignettes_ppe2026")
     if _cache is None or len(_cache["e"]) != len(vignettes):
         _e = tp.encoder_images(clip_modele, clip_pretraitement, vignettes,
                                progression=lambda it: mo.status.progress_bar(it, title="Encodage des vignettes par CLIP"))
-        tp.sauver_cache("tp4_emb_vignettes", e=_e)
+        tp.sauver_cache("tp4_emb_vignettes_ppe2026", e=_e)
         _cache = {"e": _e}
     emb_vignettes = _cache["e"]
     mo.md(f"Embeddings des vignettes : {emb_vignettes.shape} (un vecteur de 512 nombres par image).")
@@ -469,7 +471,7 @@ def _(mo):
     ## Étape 3 — CLIP : un moteur de recherche d'images
 
     Puisque textes et images vivent dans le même espace, on peut chercher des images **en décrivant ce qu'on veut**,
-    sans aucun mot-clé associé aux images. On encode une fois un corpus de 500 photos de chantier, puis chaque
+    sans aucun mot-clé associé aux images. On encode une fois un corpus de 500 images de chantier, puis chaque
     requête ne coûte qu'un produit matriciel.
 
     ### À compléter — TODO 3 : la recherche
@@ -501,11 +503,11 @@ def _(mo, ok_todo1, rechercher, tests, tp):
 @app.cell
 def _(clip_modele, clip_pretraitement, dossier_ppe, mo, np, tp):
     corpus = tp.lister_images(dossier_ppe, "train")[:500]
-    _cache = tp.charger_cache("tp4_emb_corpus")
+    _cache = tp.charger_cache("tp4_emb_corpus_ppe2026")
     if _cache is None or len(_cache["e"]) != len(corpus):
         _e = tp.encoder_images(clip_modele, clip_pretraitement, corpus,
                                progression=lambda it: mo.status.progress_bar(it, title="Encodage du corpus par CLIP"))
-        tp.sauver_cache("tp4_emb_corpus", e=_e)
+        tp.sauver_cache("tp4_emb_corpus_ppe2026", e=_e)
         _cache = {"e": _e}
     emb_corpus = _cache["e"]
     # Pour évaluer : quelles classes sont présentes dans chaque image (d'après les annotations du TD 2) ?
@@ -618,7 +620,7 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    image_requete = mo.ui.slider(0, 140, value=7, label="Image requête (jeu de test)", show_value=True)
+    image_requete = mo.ui.slider(0, 199, value=7, label="Image requête (jeu de test)", show_value=True)
     image_requete
     return (image_requete,)
 
@@ -641,10 +643,10 @@ def _(
     _chemin = tp.lister_images(dossier_ppe, "test")[image_requete.value]
     _img = tp.Image.open(_chemin).convert("RGB")
     _idx_clip = rechercher(tp.encoder_images(clip_modele, clip_pretraitement, [_img])[0], emb_corpus, k=5)
-    _cache = tp.charger_cache("tp4_couleur_corpus")
+    _cache = tp.charger_cache("tp4_couleur_corpus_ppe2026")
     if _cache is None:
         _cache = {"h": np.stack([tp.descripteur_pixels(tp.Image.open(p))[-48:] for p in corpus])}
-        tp.sauver_cache("tp4_couleur_corpus", h=_cache["h"])
+        tp.sauver_cache("tp4_couleur_corpus_ppe2026", h=_cache["h"])
     _idx_couleur = rechercher(tp.descripteur_pixels(_img)[-48:], _cache["h"], k=5)
     _lire = lambda i: tp.lire_image_rgb(corpus[i], cote_max=320)
     mo.vstack([
